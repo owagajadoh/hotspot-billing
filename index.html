@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clan WiFi</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="overlay"></div>
+    <div class="content fade-in">
+      <h1>Welcome to <span>Clan WiFi</span></h1>
+      <p>Fast • Reliable • Affordable</p>
+      <input 
+        id="phone" 
+        type="text" 
+        inputmode="numeric" 
+        pattern="[0-9]*" 
+        placeholder="2547XXXXXXXX" 
+        required 
+        minlength="12" 
+        maxlength="12"
+      />
+    </div>
+  </section>
+
+  <!-- Plans Section -->
+  <section class="plans-section">
+    <h2 class="fade-in">Choose Your Plan</h2>
+    <div class="plans" id="plansContainer">
+      <p>Loading plans...</p>
+    </div>
+  </section>
+
+  <!-- Reconnect Button -->
+  <div class="reconnect-container">
+    <button class="reconnect-btn fade-in" onclick="reconnectUser()">Reconnect</button>
+  </div>
+
+  <!-- Spinner Overlay -->
+  <div class="spinner-overlay" id="loadingSpinner">
+    <div class="spinner"></div>
+  </div>
+
+  <script src="scripts.js"></script>
+</body>
+</html>
