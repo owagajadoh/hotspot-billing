@@ -1,0 +1,84 @@
+/* Reset & Body */
+* { margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif; }
+body { background:#f9f9f9; color:#333; }
+
+/* Hero Section */
+.hero {
+  position: relative;
+  height:75vh;
+  background: url("https://images.unsplash.com/photo-1612832021033-7df3f12d4aa3?auto=format&fit=crop&w=1600&q=80") center/cover no-repeat;
+  display:flex; justify-content:center; align-items:center; text-align:center; overflow:hidden;
+}
+.hero .overlay {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  background: linear-gradient(135deg, rgba(0,128,255,0.6), rgba(0,200,255,0.6));
+  z-index:1;
+}
+.content {
+  position: relative;
+  z-index:2;
+  display:flex; flex-direction:column; gap:15px; color:#fff;
+  animation:slideUp 1s ease forwards;
+}
+.content h1 { font-size:2.8rem; }
+.content h1 span {
+  background: linear-gradient(90deg, #ffea00, #ff5e62);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.content p { font-size:1.2rem; }
+.content input {
+  padding:12px; width:250px; max-width:80%; border-radius:30px; border:none; font-size:14px; outline:none; text-align:center;
+  -moz-appearance:textfield;
+}
+.content input::-webkit-outer-spin-button, .content input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+
+/* Plans Section */
+.plans-section { padding:60px 20px; text-align:center; }
+.plans-section h2 { font-size:2rem; color:#007bff; margin-bottom:35px; }
+.plans { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:25px; justify-items:center; }
+
+.plan-card {
+  background:#fff; padding:25px 20px; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.15);
+  transition: all 0.3s; cursor:pointer;
+}
+.plan-card:hover { transform:translateY(-12px) scale(1.08); box-shadow:0 20px 40px rgba(0,0,0,0.25); }
+.plan-card h3 { color:#007bff; font-size:1.6rem; margin-bottom:10px; }
+.plan-card p { font-size:14px; margin:5px 0; }
+.duration { color:#666; font-size:13px; margin-bottom:15px; }
+.plan-card button {
+  width:100%; padding:12px; border:none; border-radius:30px;
+  background:linear-gradient(135deg,#ff7e5f,#feb47b); color:#fff; font-weight:bold; cursor:pointer; transition:all 0.3s;
+}
+.plan-card button:hover { background:linear-gradient(135deg,#ff416c,#ff4b2b); transform:scale(1.05); }
+
+.connected-badge {
+  display:inline-block; padding:10px 15px; background:#28a745; color:#fff; font-weight:bold; border-radius:30px; text-transform:uppercase; font-size:14px; transition:all 0.3s;
+}
+.connected-badge:hover { background:#218838; transform:scale(1.05); }
+
+/* Reconnect Button */
+.reconnect-container { text-align:center; margin:30px 0; }
+.reconnect-btn {
+  padding:12px 30px; border-radius:30px; border:none; font-size:1rem;
+  background:linear-gradient(135deg, #6a11cb, #2575fc); color:#fff; cursor:pointer; transition:all 0.3s;
+}
+.reconnect-btn:hover { background:linear-gradient(135deg, #2575fc, #6a11cb); transform:scale(1.05); }
+
+/* Spinner */
+.spinner-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.3); justify-content:center; align-items:center; z-index:999; }
+.spinner { border:5px solid #f3f3f3; border-top:5px solid #007bff; border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite; }
+
+/* Animations */
+@keyframes spin { 0%{transform:rotate(0deg);}100%{transform:rotate(360deg);} }
+@keyframes fadeIn { to{opacity:1;} }
+@keyframes slideUp { 0%{transform:translateY(30px);opacity:0;} 100%{transform:translateY(0);opacity:1;} }
+.fade-in { opacity:0; animation:fadeIn 1s forwards; }
+
+/* Responsive */
+@media(max-width:768px) {
+  .content h1 { font-size:2rem; }
+  .content p { font-size:1rem; }
+  .plans-section { padding:40px 15px; }
+  .content input { width:200px; }
+}

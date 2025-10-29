@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clan WiFi</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="scripts.js" defer></script>
+</head>
+<body>
+  <div class="background">
+    <div class="bubble b1"></div>
+    <div class="bubble b2"></div>
+    <div class="bubble b3"></div>
+    <div class="bubble b4"></div>
+    <div class="bubble b5"></div>
+  </div>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1 class="fade-in">Welcome to <span>Clan WiFi</span></h1>
+      <p class="fade-in">Fast • Reliable • Affordable</p>
+      <input
+        id="phone"
+        type="text"
+        inputmode="numeric"
+        pattern="[0-9]*"
+        placeholder="2547XXXXXXXX"
+        required
+        minlength="12"
+        maxlength="12"
+        oninput="formatPhoneInput(); autoValidateUser();"
+      />
+    </div>
+  </section>
+
+  <!-- Plans Section -->
+  <section class="plans-section">
+    <h2 class="fade-in">Choose Your Plan</h2>
+    <div class="plans">
+      <div class="plan-card">
+        <h3>Ksh 5</h3>
+        <p>Unlimited Internet</p>
+        <span class="duration">2 Hours (Promo)</span>
+        <button onclick="buyPlan(1)">Buy Now</button>
+      </div>
+      <div class="plan-card">
+        <h3>Ksh 10</h3>
+        <p>Unlimited Internet</p>
+        <span class="duration">2 Hours</span>
+        <button onclick="buyPlan(2)">Buy Now</button>
+      </div>
+      <div class="plan-card popular">
+        <h3>Ksh 20</h3>
+        <p>Unlimited Internet</p>
+        <span class="duration">3 Hours</span>
+        <button onclick="buyPlan(3)">Buy Now</button>
+      </div>
+      <div class="plan-card">
+        <h3>Ksh 50</h3>
+        <p>Unlimited Internet</p>
+        <span class="duration">6 Hours</span>
+        <button onclick="buyPlan(4)">Buy Now</button>
+      </div>
+      <div class="plan-card">
+        <h3>Ksh 100</h3>
+        <p>Unlimited Internet</p>
+        <span class="duration">24 Hours</span>
+        <button onclick="buyPlan(5)">Buy Now</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Reconnect Button -->
+  <div class="reconnect-section">
+    <button class="reconnect-btn fade-in" onclick="reconnectUser()">Reconnect</button>
+  </div>
+
+  <!-- Spinner Overlay -->
+  <div class="spinner-overlay" id="loadingSpinner">
+    <div class="spinner"></div>
+  </div>
+</body>
+</html>

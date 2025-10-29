@@ -1,0 +1,261 @@
+/* -------------------------
+   GLOBAL RESET & BASE
+-------------------------- */
+body, html {
+  margin: 0;
+  padding: 0;
+  font-family: 'Poppins', sans-serif;
+  overflow-x: hidden;
+  color: #fff;
+}
+
+/* -------------------------
+   BACKGROUND + BUBBLES
+-------------------------- */
+.background {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: linear-gradient(135deg, #203A43, #2C5364, #0F2027);
+  overflow: hidden;
+  z-index: -2;
+}
+
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  filter: blur(30px);
+  animation: float 14s infinite ease-in-out;
+}
+
+.b1 { width: 180px; height: 180px; top: 5%; left: 8%; animation-delay: 0s; }
+.b2 { width: 280px; height: 280px; top: 25%; right: 5%; animation-delay: 2s; }
+.b3 { width: 120px; height: 120px; bottom: 10%; left: 15%; animation-delay: 4s; }
+.b4 { width: 220px; height: 220px; bottom: 15%; right: 8%; animation-delay: 6s; }
+.b5 { width: 320px; height: 320px; top: 50%; left: 40%; animation-delay: 8s; }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-30px); }
+}
+
+/* -------------------------
+   HERO SECTION
+-------------------------- */
+.hero {
+  height: 60vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  color: white;
+}
+
+.hero-content {
+  backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 40px 60px;
+  border-radius: 25px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: slideUp 1s ease forwards;
+}
+
+.hero-content h1 {
+  font-size: 2.8rem;
+  margin-bottom: 10px;
+  text-shadow: 0 0 15px rgba(0, 196, 255, 0.4);
+}
+
+.hero-content span {
+  color: #00c4ff;
+}
+
+.hero-content p {
+  margin-bottom: 20px;
+  font-size: 1.2rem;
+  color: #d8f1ff;
+}
+
+.hero-content input {
+  padding: 14px;
+  width: 280px;
+  border-radius: 12px;
+  border: none;
+  outline: none;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  text-align: center;
+  font-size: 1rem;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+  transition: 0.3s ease;
+}
+
+.hero-content input:focus {
+  background: rgba(0, 196, 255, 0.25);
+  box-shadow: 0 0 20px rgba(0, 196, 255, 0.4);
+}
+
+.hero-content input::placeholder {
+  color: #e3e3e3;
+}
+
+/* -------------------------
+   PLANS SECTION
+-------------------------- */
+.plans-section {
+  padding: 80px 20px;
+  text-align: center;
+}
+
+.plans-section h2 {
+  font-size: 2rem;
+  margin-bottom: 45px;
+  text-shadow: 0 0 12px rgba(0, 196, 255, 0.4);
+}
+
+/* Grid layout */
+.plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 25px;
+}
+
+/* Visible, colorful plan cards */
+.plan-card {
+  backdrop-filter: blur(25px);
+  background: rgba(0, 196, 255, 0.15);
+  border: 1px solid rgba(0, 196, 255, 0.4);
+  border-radius: 20px;
+  padding: 25px 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.plan-card:hover {
+  transform: translateY(-8px) scale(1.04);
+  background: rgba(0, 196, 255, 0.3);
+  box-shadow: 0 15px 35px rgba(0,196,255,0.4);
+}
+
+.plan-card h3 {
+  color: #00eaff;
+  font-size: 1.9rem;
+  margin: 0;
+  text-shadow: 0 0 10px rgba(0, 234, 255, 0.3);
+}
+
+.plan-card p {
+  margin: 10px 0;
+  font-size: 1rem;
+  color: #e6faff;
+}
+
+.duration {
+  color: #bceaff;
+  font-size: 0.9rem;
+  margin-bottom: 15px;
+  display: block;
+}
+
+.plan-card button {
+  padding: 12px 0;
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(90deg,#00c4ff,#007bff);
+  color: white;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.plan-card button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 18px rgba(0,196,255,0.6);
+}
+
+/* Highlighted plan */
+.popular {
+  border: 2px solid #00ffff;
+  background: rgba(0,255,255,0.2);
+  transform: scale(1.05);
+}
+
+/* -------------------------
+   RECONNECT BUTTON
+-------------------------- */
+.reconnect-section {
+  text-align: center;
+  margin: 40px 0;
+}
+
+.reconnect-btn {
+  padding: 14px 30px;
+  background: linear-gradient(90deg,#00c4ff,#4f86f7);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.reconnect-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(0,196,255,0.7);
+}
+
+/* -------------------------
+   SPINNER
+-------------------------- */
+.spinner-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.spinner {
+  border: 5px solid rgba(255,255,255,0.2);
+  border-top: 5px solid #00c4ff;
+  border-radius: 50%;
+  width: 60px; height: 60px;
+  animation: spin 1s linear infinite;
+}
+
+/* -------------------------
+   ANIMATIONS
+-------------------------- */
+@keyframes spin { 100% { transform: rotate(360deg); } }
+@keyframes fadeIn { to { opacity: 1; } }
+@keyframes slideUp { 0% { transform: translateY(30px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+
+/* -------------------------
+   RESPONSIVENESS
+-------------------------- */
+@media (max-width: 1024px) {
+  .hero-content { padding: 30px 40px; }
+  .hero-content h1 { font-size: 2.4rem; }
+  .plans-section h2 { font-size: 1.8rem; }
+}
+
+@media (max-width: 768px) {
+  .hero { height: 50vh; }
+  .hero-content { padding: 25px 30px; }
+  .plans { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+}
+
+@media (max-width: 480px) {
+  .hero-content h1 { font-size: 1.8rem; }
+  .hero-content p { font-size: 1rem; }
+  .hero-content input { width: 90%; }
+  .plans-section { padding: 50px 15px; }
+}
