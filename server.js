@@ -20,6 +20,7 @@ const pool = new Pool({
   database: process.env.DB_NAME || "hotspot",
   password: process.env.DB_PASS || "",
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
+  tls: process.env.MIKROTIK_SSL === 'true', // enables SSL (8729)
 });
 
 // ---------- MikroTik connection helper ----------
@@ -431,3 +432,4 @@ app.listen(PORT, async () => {
     console.warn("MikroTik initial sync failed - will retry later:", err && err.message ? err.message : err);
   }
 });
+
