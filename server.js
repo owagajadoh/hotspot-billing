@@ -20,7 +20,10 @@ const pool = new Pool({
   database: process.env.DB_NAME || "hotspot",
   password: process.env.DB_PASS || "",
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
-  tls: process.env.MIKROTIK_SSL === 'true', // enables SSL (8729)
+  // Use SSL for Postgres if DB_SSL=true in .env. DB_SSL_REJECT_UNAUTHORIZED=false to allow self-signed.
+  ssl: process.env.DB_SSL === "true"
+    ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false" }
+    : false,
 });
 
 // ---------- MikroTik connection helper ----------
@@ -28,26 +31,35 @@ const mikrotikCfg = {
   host: process.env.MIKROTIK_HOST || "192.168.88.1",
   user: process.env.MIKROTIK_USER || "admin",
   password: process.env.MIKROTIK_PASS || "",
-  port: parseInt(process.env.MIKROTIK_PORT || "8728", 10),
-  timeout: parseInt(process.env.MIKROTIK_TIMEOUT || "20000", 10), // ms
+  port: process.env.MIKROTIK_PORT ? parseInt(process.env.MIKROTIK_PORT, 10) : undefined,
+  timeout: process.env.MIKROTIK_TIMEOUT ? parseInt(process.env.MIKROTIK_TIMEOUT, 10) : 20000, // ms
+  useSsl: process.env.MIKROTIK_USE_SSL === "true", // if true prefer TLS (api-ssl)
+  rejectUnauthorized: process.env.MIKROTIK_REJECT_UNAUTHORIZED !== "false", // allow self-signed if false
 };
+
+if (!mikrotikCfg.port) {
+  // default: if useSsl true use 8729 else 8728
+  mikrotikCfg.port = mikrotikCfg.useSsl ? 8729 : 8728;
+}
 
 let mikrotikApi = null; // RouterOSAPI instance
 let mikrotikConn = null; // connection object
 
-// attach router error handler (defensive)
+// Attach defensive error handlers if available on the driver
 function attachRouterErrorHandlers(api) {
   try {
-    // Some versions provide connector and emit events
-    if (api && api.connector && typeof api.connector.on === "function") {
-      api.connector.on("error", (err) => {
+    if (!api) return;
+    // newer node-routeros exposes connector which emits errors/timeouts
+    const connector = api.connector || api;
+    if (connector && typeof connector.on === "function") {
+      connector.on("error", (err) => {
         console.error("RouterOS connector error event:", err && err.message ? err.message : err);
-        // try graceful cleanup
-        try {
-          if (mikrotikConn && typeof mikrotikConn.close === "function") mikrotikConn.close();
-        } catch (e) {}
+        try { if (mikrotikConn && typeof mikrotikConn.close === "function") mikrotikConn.close(); } catch(e) {}
         mikrotikApi = null;
         mikrotikConn = null;
+      });
+      connector.on("timeout", (err) => {
+        console.warn("RouterOS connector timeout event:", err && err.message ? err.message : err);
       });
     }
   } catch (e) {
@@ -59,13 +71,24 @@ async function connectMikrotik() {
   try {
     if (mikrotikConn) return { api: mikrotikApi, conn: mikrotikConn };
 
-    mikrotikApi = new RouterOSAPI({
+    // Build options for RouterOSAPI
+    const options = {
       host: mikrotikCfg.host,
       user: mikrotikCfg.user,
       password: mikrotikCfg.password,
       port: mikrotikCfg.port,
-      timeout: mikrotikCfg.timeout, // some builds accept this
-    });
+      timeout: mikrotikCfg.timeout,
+    };
+
+    // enable TLS if using api-ssl (8729) or explicitly requested
+    if (mikrotikCfg.useSsl || mikrotikCfg.port === 8729) {
+      options.tls = true;
+      // pass TLS options for node-routeros if supported
+      options.rejectUnauthorized = mikrotikCfg.rejectUnauthorized === true;
+      // if you need to provide CA/cert files, you can add `options.tlsOptions = { ca: fs.readFileSync('/path') }`
+    }
+
+    mikrotikApi = new RouterOSAPI(options);
 
     attachRouterErrorHandlers(mikrotikApi);
 
@@ -75,10 +98,8 @@ async function connectMikrotik() {
     return { api: mikrotikApi, conn: mikrotikConn };
   } catch (err) {
     console.error("❌ MikroTik connect error:", err && err.message ? err.message : err);
-    // clear so next attempt will retry
-    try {
-      if (mikrotikConn && typeof mikrotikConn.close === "function") mikrotikConn.close();
-    } catch (e) {}
+    // cleanup
+    try { if (mikrotikConn && typeof mikrotikConn.close === "function") mikrotikConn.close(); } catch(e) {}
     mikrotikApi = null;
     mikrotikConn = null;
     throw err;
@@ -87,9 +108,7 @@ async function connectMikrotik() {
 
 async function disconnectMikrotik() {
   try {
-    if (mikrotikConn && typeof mikrotikConn.close === "function") {
-      mikrotikConn.close();
-    }
+    if (mikrotikConn && typeof mikrotikConn.close === "function") mikrotikConn.close();
   } catch (err) {
     // ignore
   } finally {
@@ -102,19 +121,14 @@ async function disconnectMikrotik() {
 // ---------- helpers ----------
 
 /**
- * Convert Postgres interval or textual durations to RouterOS session-timeout strings.
- * e.g. "02:00:00" -> "2h", "1 day" -> "1d", "1 day 02:00:00" -> "1d2h", "00:30:00" -> "30m"
- * If cannot convert, returns null.
+ * Convert Postgres interval/text to RouterOS session-timeout like "2h", "1d2h", "30m"
  */
 function formatDurationForRouterOS(raw) {
   if (!raw) return null;
   const s = String(raw).trim().toLowerCase();
 
-  // days (e.g. "1 day" or "2 days")
   const dayMatch = s.match(/(\d+)\s*day/);
-  // time HH:MM:SS
   const timeMatch = s.match(/(\d{1,2}):(\d{2}):(\d{2})/);
-  // textual hours/minutes e.g. "2 hours", "30 minutes"
   const hrText = s.match(/(\d+)\s*hour/);
   const minText = s.match(/(\d+)\s*min/);
 
@@ -129,7 +143,6 @@ function formatDurationForRouterOS(raw) {
     const hrs = parseInt(timeMatch[1], 10);
     const mins = parseInt(timeMatch[2], 10);
     const secs = parseInt(timeMatch[3], 10);
-
     if (!isNaN(hrs) && hrs > 0) out += `${hrs}h`;
     if (!isNaN(mins) && mins > 0) out += `${mins}m`;
     if (!isNaN(secs) && secs > 0 && out === "") out += `${secs}s`;
@@ -143,26 +156,20 @@ function formatDurationForRouterOS(raw) {
 }
 
 /**
- * helper to call conn.write and read result in a defensive way
- * supports driver variant that returns a stream with .read(),
- * or one that returns an array/object directly.
- * returns array of items or [] on none.
+ * Safe wrapper for conn.write + .read() compatibility across driver versions.
+ * Returns an array (possibly empty).
  */
 async function routerPrint(conn, command, args = []) {
   try {
     const res = await conn.write(command, args);
-    // if res has read()
     if (res && typeof res.read === "function") {
       const items = await res.read();
       return Array.isArray(items) ? items : (items ? [items] : []);
     }
-    // some implementations return an array directly
     if (Array.isArray(res)) return res;
     if (res) return [res];
     return [];
   } catch (err) {
-    // return empty and let caller handle absence
-    // but log for visibility
     console.warn(`routerPrint warning for ${command}:`, err && err.message ? err.message : err);
     return [];
   }
@@ -200,7 +207,6 @@ async function syncPlansToMikrotik() {
       // create profile
       try {
         const sessionTimeout = formatDurationForRouterOS(plan.duration);
-
         const addArgs = [`=name=${plan.profile_name}`];
         if (plan.rate_limit) addArgs.push(`=rate-limit=${plan.rate_limit}`);
         if (sessionTimeout) addArgs.push(`=session-timeout=${sessionTimeout}`);
@@ -213,7 +219,7 @@ async function syncPlansToMikrotik() {
     }
   } catch (err) {
     console.error("syncPlansToMikrotik failed:", err && err.message ? err.message : err);
-    // don't throw — caller will retry later
+    // don't throw; next interval will retry
   }
 }
 
@@ -221,8 +227,6 @@ async function syncPlansToMikrotik() {
 async function createHotspotUser(phone, profileName) {
   try {
     const { conn } = await connectMikrotik();
-
-    // remove existing user if present (ignore errors)
     try {
       await conn.write("/ip/hotspot/user/remove", [`?name=${phone}`]);
     } catch (e) {
@@ -288,17 +292,14 @@ app.post("/pay", async (req, res) => {
     const plan = planRes.rows[0];
     const amount = plan.price;
 
-    // create transaction
     const txRes = await pool.query("INSERT INTO transactions (phone_number, amount, status) VALUES ($1,$2,$3) RETURNING id", [phone, amount, "pending"]);
     const txId = txRes.rows[0].id;
 
-    // get access token (sandbox or production)
     const baseUrl = process.env.MPESA_ENV === "production" ? "https://api.safaricom.co.ke" : "https://sandbox.safaricom.co.ke";
     const auth = Buffer.from(`${process.env.MPESA_CONSUMER_KEY}:${process.env.MPESA_CONSUMER_SECRET}`).toString("base64");
     const tokenRes = await axios.get(`${baseUrl}/oauth/v1/generate?grant_type=client_credentials`, { headers: { Authorization: `Basic ${auth}` } });
     const token = tokenRes.data.access_token;
 
-    // build STK push password
     const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
     const password = Buffer.from(process.env.MPESA_SHORTCODE + process.env.MPESA_PASSKEY + timestamp).toString("base64");
 
@@ -361,20 +362,16 @@ app.post("/callback", async (req, res) => {
 
       await pool.query("UPDATE transactions SET status=$1, mpesa_receipt=$2 WHERE id=$3", ["success", receipt, txId]);
 
-      // find plan by amount (use first matching active plan)
       const planRes = await pool.query("SELECT id, profile_name FROM plans WHERE price=$1 AND active=true ORDER BY id LIMIT 1", [amount]);
       if (planRes.rows.length === 0) {
         console.warn("No plan found for amount", amount);
       } else {
         const profileName = planRes.rows[0].profile_name;
-
-        // ensure user exists in users table
         const u = await pool.query("SELECT id FROM users WHERE phone_number=$1", [paidPhone]);
         if (u.rows.length === 0) {
           await pool.query("INSERT INTO users (username, password, phone_number) VALUES ($1,$2,$3)", [paidPhone, paidPhone, paidPhone]);
         }
 
-        // extend active_until by plan duration
         await pool.query(
           `UPDATE users
            SET active_until = CASE
@@ -386,7 +383,6 @@ app.post("/callback", async (req, res) => {
           [amount, paidPhone]
         );
 
-        // create MikroTik user for immediate login (best-effort)
         try {
           await createHotspotUser(paidPhone, profileName);
         } catch (err) {
@@ -432,4 +428,3 @@ app.listen(PORT, async () => {
     console.warn("MikroTik initial sync failed - will retry later:", err && err.message ? err.message : err);
   }
 });
-
