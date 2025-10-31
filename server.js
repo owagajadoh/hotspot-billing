@@ -1,4 +1,4 @@
-// server.js - Hotspot billing + M-Pesa + MikroTik sync & user creation
+// server.js - Cloud hotspot billing + M-Pesa + MikroTik
 require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
@@ -13,16 +13,13 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// ---------- Postgres ----------
+// ---------- PostgreSQL ----------
 const pool = new Pool({
   user: process.env.DB_USER || "postgres",
   host: process.env.DB_HOST || "localhost",
   database: process.env.DB_NAME || "hotspot",
   password: process.env.DB_PASS || "",
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
-  ssl: process.env.DB_SSL === "true"
-    ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false" }
-    : false,
 });
 
 // ---------- MikroTik ----------
@@ -30,56 +27,54 @@ const mikrotikCfg = {
   host: process.env.MIKROTIK_HOST || "192.168.88.1",
   user: process.env.MIKROTIK_USER || "admin",
   password: process.env.MIKROTIK_PASS || "",
-  port: process.env.MIKROTIK_PORT ? parseInt(process.env.MIKROTIK_PORT, 10) : undefined,
+  port: process.env.MIKROTIK_PORT ? parseInt(process.env.MIKROTIK_PORT, 10) : 8728,
   timeout: process.env.MIKROTIK_TIMEOUT ? parseInt(process.env.MIKROTIK_TIMEOUT, 10) : 20000,
   useSsl: process.env.MIKROTIK_SSL === "true",
   rejectUnauthorized: process.env.MIKROTIK_REJECT_UNAUTHORIZED !== "false",
 };
 
-if (!mikrotikCfg.port) mikrotikCfg.port = mikrotikCfg.useSsl ? 8729 : 8728;
-
 let mikrotikApi = null;
 let mikrotikConn = null;
 
 async function connectMikrotik() {
-  try {
-    if (mikrotikConn) return mikrotikConn;
-    mikrotikApi = new RouterOSAPI({
-      host: mikrotikCfg.host,
-      user: mikrotikCfg.user,
-      password: mikrotikCfg.password,
-      port: mikrotikCfg.port,
-      timeout: mikrotikCfg.timeout,
-      tls: mikrotikCfg.useSsl,
-      rejectUnauthorized: mikrotikCfg.rejectUnauthorized === true,
-    });
-    mikrotikConn = await mikrotikApi.connect();
-    console.log("✅ Connected to MikroTik", mikrotikCfg.host);
-    return mikrotikConn;
-  } catch (err) {
-    console.error("❌ MikroTik connect error:", err?.message || err);
-    mikrotikConn = null;
-    mikrotikApi = null;
-    throw err;
-  }
+  if (mikrotikConn) return mikrotikConn;
+
+  mikrotikApi = new RouterOSAPI({
+    host: mikrotikCfg.host,
+    user: mikrotikCfg.user,
+    password: mikrotikCfg.password,
+    port: mikrotikCfg.port,
+    timeout: mikrotikCfg.timeout,
+    tls: mikrotikCfg.useSsl,
+    rejectUnauthorized: mikrotikCfg.rejectUnauthorized,
+  });
+
+  mikrotikConn = await mikrotikApi.connect();
+  console.log("✅ Connected to MikroTik:", mikrotikCfg.host);
+  return mikrotikConn;
 }
 
-// ---------- Hotspot user helper ----------
+// ---------- Hotspot helper ----------
 async function createOrUpdateHotspotUser(phone, profileName) {
   try {
     const conn = await connectMikrotik();
-    // remove if exists
+    // Remove if exists
     try { await conn.write("/ip/hotspot/user/remove", [`?name=${phone}`]); } catch {}
-    // add user with profile
-    await conn.write("/ip/hotspot/user/add", [`=name=${phone}`, `=password=${phone}`, `=profile=${profileName}`]);
+    // Add user
+    await conn.write("/ip/hotspot/user/add", [
+      `=name=${phone}`,
+      `=password=${phone}`,
+      `=profile=${profileName}`
+    ]);
     console.log(`✅ MikroTik user ${phone} assigned to profile ${profileName}`);
   } catch (err) {
     console.error("Hotspot user creation failed:", err?.message || err);
   }
 }
 
-// ---------- API endpoints ----------
-// /plans
+// ---------- API ----------
+
+// Get active plans
 app.get("/plans", async (req, res) => {
   try {
     const result = await pool.query("SELECT id, price, profile_name, duration FROM plans WHERE active=true ORDER BY price ASC");
@@ -90,7 +85,7 @@ app.get("/plans", async (req, res) => {
   }
 });
 
-// /pay
+// Pay for plan
 app.post("/pay", async (req, res) => {
   try {
     const { phone, plan_id } = req.body;
@@ -101,10 +96,13 @@ app.post("/pay", async (req, res) => {
     const plan = planRes.rows[0];
 
     // Create transaction
-    const txRes = await pool.query("INSERT INTO transactions (phone_number, amount, status) VALUES ($1,$2,$3) RETURNING id", [phone, plan.price, "pending"]);
+    const txRes = await pool.query(
+      "INSERT INTO transactions (phone_number, amount, status) VALUES ($1,$2,$3) RETURNING id",
+      [phone, plan.price, "pending"]
+    );
     const txId = txRes.rows[0].id;
 
-    // Initiate M-Pesa STK Push
+    // M-Pesa STK Push
     const baseUrl = process.env.MPESA_ENV === "production" ? "https://api.safaricom.co.ke" : "https://sandbox.safaricom.co.ke";
     const auth = Buffer.from(`${process.env.MPESA_CONSUMER_KEY}:${process.env.MPESA_CONSUMER_SECRET}`).toString("base64");
     const tokenRes = await axios.get(`${baseUrl}/oauth/v1/generate?grant_type=client_credentials`, { headers: { Authorization: `Basic ${auth}` } });
@@ -127,18 +125,22 @@ app.post("/pay", async (req, res) => {
       TransactionDesc: "WiFi Purchase",
     };
 
-    const stkRes = await axios.post(`${baseUrl}/mpesa/stkpush/v1/processrequest`, stkPayload, { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } });
+    const stkRes = await axios.post(`${baseUrl}/mpesa/stkpush/v1/processrequest`, stkPayload, {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+    });
+
     const checkoutId = stkRes.data.CheckoutRequestID;
     await pool.query("UPDATE transactions SET mpesa_request_id=$1 WHERE id=$2", [checkoutId, txId]);
 
     res.json({ success: true, checkoutId });
+
   } catch (err) {
     console.error("Payment initiation failed:", err.response?.data || err.message || err);
     res.status(500).json({ success: false, error: "Payment initiation failed" });
   }
 });
 
-// /callback
+// M-Pesa Callback
 app.post("/callback", async (req, res) => {
   try {
     const cb = req.body;
@@ -146,11 +148,11 @@ app.post("/callback", async (req, res) => {
     const resultCode = cb?.Body?.stkCallback?.ResultCode;
     if (!checkoutId) return res.status(400).send("Invalid callback");
 
-    const tx = await pool.query("SELECT id, phone_number FROM transactions WHERE mpesa_request_id=$1", [checkoutId]);
-    if (!tx.rows.length) return res.json({ message: "Transaction not found" });
+    const txRes = await pool.query("SELECT id, phone_number FROM transactions WHERE mpesa_request_id=$1", [checkoutId]);
+    if (!txRes.rows.length) return res.json({ message: "Transaction not found" });
 
-    const txId = tx.rows[0].id;
-    const phone = tx.rows[0].phone_number;
+    const txId = txRes.rows[0].id;
+    const phone = txRes.rows[0].phone_number;
 
     if (resultCode === 0) {
       const metadata = cb.Body.stkCallback.CallbackMetadata;
@@ -175,7 +177,7 @@ app.post("/callback", async (req, res) => {
         [phone, phone, phone, profile_name, duration]
       );
 
-      // Update MikroTik
+      // Activate MikroTik hotspot user
       await createOrUpdateHotspotUser(phone, profile_name);
 
     } else {
@@ -184,13 +186,14 @@ app.post("/callback", async (req, res) => {
     }
 
     res.json({ message: "Callback processed" });
+
   } catch (err) {
     console.error("Callback processing failed:", err?.message || err);
     res.status(500).send("Server error");
   }
 });
 
-// /validate-user
+// Validate user active status
 app.get("/validate-user/:phone", async (req, res) => {
   try {
     const phone = req.params.phone;
